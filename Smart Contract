@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract JaysterToDoList {
+    struct Task {
+        uint id;
+        string description;
+        bool isCompleted;
+    }
+
+    mapping(address => Task[]) private userTasks;
+    uint private taskIdCounter;
+
+    event TaskCreated(address indexed user, uint taskId, string description);
+    event TaskCompleted(address indexed user, uint taskId);
+    event TaskDeleted(address indexed user, uint taskId);
+
+    function createTask(string memory description) public {
+        taskIdCounter++;
+        userTasks[msg.sender].push(Task(taskIdCounter, description, false));
+        emit TaskCreated(msg.sender, taskIdCounter, description);
+    }
+
+    function completeTask(uint taskId) public {
+        Task[] storage tasks = userTasks[msg.sender];
+        bool taskFound = false;
+        for (uint i = 0; i < tasks.length; i++) {
+            if (tasks[i].id == taskId) {
+                tasks[i].isCompleted = true;
+                emit TaskCompleted(msg.sender, taskId);
+                taskFound = true;
+                break;
+            }
+        }
+        require(taskFound, "Task ID does not exist");
+    }
+
+    function deleteTask(uint taskId) public {
+        Task[] storage tasks = userTasks[msg.sender];
+        bool taskFound = false;
+        for (uint i = 0; i < tasks.length; i++) {
+            if (tasks[i].id == taskId) {
+                tasks[i] = tasks[tasks.length - 1]; // Replace the task to delete with the last task
+                tasks.pop(); // Remove the last task
+                emit TaskDeleted(msg.sender, taskId);
+                taskFound = true;
+                break;
+            }
+        }
+        require(taskFound, "Task ID does not exist");
+    }
+
+    function getTasks() public view returns (Task[] memory) {
+        return userTasks[msg.sender];
+    }
+}
