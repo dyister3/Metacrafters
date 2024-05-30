@@ -7,9 +7,10 @@ export default function HomePage() {
   const [account, setAccount] = useState(undefined);
   const [atm, setATM] = useState(undefined);
   const [balance, setBalance] = useState(undefined);
-  const [transactionHistory, setTransactionHistory] = useState([]);
-  const [depositAmount, setDepositAmount] = useState(1);
-  const [withdrawAmount, setWithdrawAmount] = useState(1);
+  const [news, setNews] = useState([]);
+  const [usdValue, setUsdValue] = useState(null);
+  const [phpValue, setPhpValue] = useState(null);
+  const [showLearnAboutETH, setShowLearnAboutETH] = useState(false);
 
   const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
   const atmABI = atm_abi.abi;
@@ -23,24 +24,24 @@ export default function HomePage() {
       const account = await ethWallet.request({ method: "eth_accounts" });
       handleAccount(account);
     }
-  }
+  };
 
   const handleAccount = (account) => {
     if (account) {
       console.log("Account connected: ", account);
-      setAccount(account[0]);
+      setAccount(account);
     } else {
       console.log("No account found");
     }
-  }
+  };
 
   const connectAccount = async () => {
     if (!ethWallet) {
-      alert('MetaMask wallet is required to connect');
+      alert("MetaMask wallet is required to connect");
       return;
     }
 
-    const accounts = await ethWallet.request({ method: 'eth_requestAccounts' });
+    const accounts = await ethWallet.request({ method: "eth_requestAccounts" });
     handleAccount(accounts);
 
     // once wallet is set we can get a reference to our deployed contract
@@ -53,114 +54,157 @@ export default function HomePage() {
     const atmContract = new ethers.Contract(contractAddress, atmABI, signer);
 
     setATM(atmContract);
-  }
+  };
 
   const getBalance = async () => {
     if (atm) {
       setBalance((await atm.getBalance()).toNumber());
     }
-  }
-
-  const addTransaction = (type, amount) => {
-    const newTransaction = {
-      type,
-      amount,
-      timestamp: new Date().toLocaleString(),
-    };
-    setTransactionHistory([...transactionHistory, newTransaction]);
-  }
+  };
 
   const deposit = async () => {
     if (atm) {
-      let tx = await atm.deposit(depositAmount);
+      let tx = await atm.deposit(1);
       await tx.wait();
       getBalance();
-      addTransaction('Deposit', depositAmount);
     }
-  }
+  };
 
   const withdraw = async () => {
     if (atm) {
-      let tx = await atm.withdraw(withdrawAmount);
+      let tx = await atm.withdraw(1);
       await tx.wait();
       getBalance();
-      addTransaction('Withdraw', withdrawAmount);
     }
-  }
+  };
 
-  const increaseDeposit = () => {
-    setDepositAmount(depositAmount + 1);
-  }
+  const fetchNews = async () => {
+    const response = await fetch("https://newsapi.org/v2/everything?q=ethereum&apiKey=YOUR_NEWSAPI_KEY");
+    const data = await response.json();
+    setNews(data.articles);
+  };
 
-  const decreaseDeposit = () => {
-    if (depositAmount > 1) {
-      setDepositAmount(depositAmount - 1);
-    }
-  }
+  const fetchExchangeRates = async () => {
+    const response = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd,php");
+    const data = await response.json();
+    const ethPriceInUsd = data.ethereum.usd;
+    const ethPriceInPhp = data.ethereum.php;
 
-  const increaseWithdraw = () => {
-    setWithdrawAmount(withdrawAmount + 1);
-  }
+    setUsdValue(balance * ethPriceInUsd);
+    setPhpValue(balance * ethPriceInPhp);
+  };
 
-  const decreaseWithdraw = () => {
-    if (withdrawAmount > 1) {
-      setWithdrawAmount(withdrawAmount - 1);
-    }
-  }
+  const openLearnAboutETH = () => {
+    setShowLearnAboutETH(true);
+  };
+
+  const closeLearnAboutETH = () => {
+    setShowLearnAboutETH(false);
+  };
+
+  const LearnAboutETHModal = () => {
+    return (
+      <div className="modal">
+        <div className="modal-content">
+          <span className="close" onClick={closeLearnAboutETH}>&times;</span>
+          <h2>What is Ethereum (ETH)?</h2>
+          <p>Ethereum is a decentralized, open-source blockchain system that features smart contract functionality. It is the second-largest cryptocurrency platform by market capitalization, after Bitcoin.</p>
+          <p>Developed by Vitalik Buterin in 2013 and later implemented in 2015, Ethereum allows developers to build decentralized applications (DApps) on its blockchain. These applications can be used for a variety of purposes, including financial transactions, gaming, voting, and more.</p>
+          <p>Ethereum's native cryptocurrency, Ether (ETH), is used to pay for transactions and computational services on the network. It is also traded on various cryptocurrency exchanges.</p>
+        </div>
+      </div>
+    );
+  };
 
   const initUser = () => {
     // Check to see if user has Metamask
     if (!ethWallet) {
-      return <p>Please install Metamask in order to use this ATM.</p>
+      return <p>Please install Metamask in order to use this ATM.</p>;
     }
 
     // Check to see if user is connected. If not, connect to their account
     if (!account) {
-      return <button onClick={connectAccount}>Click here to open Jayster's Wallet</button>
+      return <button onClick={connectAccount}>Click to enter Jayster</button>;
     }
 
-    if (balance == undefined) {
+    if (balance === undefined) {
       getBalance();
     }
 
     return (
       <div>
         <p>Your Account: {account}</p>
-        <p>Your Balance: {balance}</p>
-        <div>
-          <button onClick={decreaseDeposit}>-</button>
-          <span>Deposit Amount: {depositAmount} ETH</span>
-          <button onClick={increaseDeposit}>+</button>
-          <button onClick={deposit}>Deposit</button>
-        </div>
-        <div>
-          <button onClick={decreaseWithdraw}>-</button>
-          <span>Withdraw Amount: {withdrawAmount} ETH</span>
-          <button onClick={increaseWithdraw}>+</button>
-          <button onClick={withdraw}>Withdraw</button>
-        </div>
-        <h2>Transaction History</h2>
-        <ul>
-          {transactionHistory.map((tx, index) => (
-            <li key={index}>{`${tx.timestamp} - ${tx.type}: ${tx.amount} ETH`}</li>
-          ))}
-        </ul>
+        <p>Your Balance: {balance} ETH</p>
+        <button onClick={deposit}>Deposit 1 ETH</button>
+        <button onClick={withdraw}>Withdraw 1 ETH</button>
+        <button onClick={fetchNews}>See ETH News</button>
+        <button onClick={fetchExchangeRates}>Convert Balance to USD & PHP</button>
+        <button onClick={openLearnAboutETH}>Learn about ETH</button>
+        {usdValue !== null && <p>Equivalent in USD: ${usdValue.toFixed(2)}</p>}
+        {phpValue !== null && <p>Equivalent in PHP: ₱{phpValue.toFixed(2)}</p>}
+        {news.length > 0 && (
+          <div>
+            <h2>Ethereum News</h2>
+            <ul>
+              {news.map((article, index) => (
+                <li key={index}>
+                  <a href={article.url} target="_blank" rel="noopener noreferrer">
+                    {article.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {showLearnAboutETH && <LearnAboutETHModal />}
       </div>
-    )
-  }
+    );
+  };
 
-  useEffect(() => { getWallet(); }, []);
+  useEffect(() => {
+    getWallet();
+  }, []);
 
   return (
     <main className="container">
-      <header><h1>Welcome to Jayster's Wallet</h1></header>
+      <header><h1>Welcome to Jayster</h1></header>
       {initUser()}
       <style jsx>{`
         .container {
-          text-align: center
+          text-align: center;
         }
-      `}
-      </style>
+        .modal {
+          display: ${showLearnAboutETH ? "block" : "none"};
+          position: fixed;
+          z-index: 1;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          overflow: auto;
+          background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+          background-color: #fefefe;
+          margin
+          : 15% auto;
+          padding: 20px;
+          border: 1px solid #888;
+          width: 80%;
+        }
+        .close {
+          color: #aaa;
+          float: right;
+          font-size: 28px;
+          font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+          color: black;
+          text-decoration: none;
+          cursor: pointer;
+        }
+      `}</style>
     </main>
-  )
+  );
 }
